@@ -1,0 +1,24 @@
+# Android / Gradle
+*.iml
+.gradle/
+build/
+captures/
+local.properties
+.cxx/
+.kotlin/
+
+# Android Studio / IntelliJ
+.idea/
+*.iws
+
+# Build outputs
+*.apk
+*.aab
+
+# Secrets / keystores
+*.jks
+*.keystore
+keystore.properties
+
+# OS
+.DS_Store
