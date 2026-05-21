@@ -20,11 +20,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
-import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.ui.PlayerView
+import okhttp3.OkHttpClient
 import com.captainzonks.grodtv.piped.PipedClient
 import com.captainzonks.grodtv.piped.Quality
 import com.captainzonks.grodtv.piped.ResolvedVideo
@@ -85,9 +86,8 @@ private fun PlayerSurface(resolved: ResolvedVideo) {
     val context = LocalContext.current
 
     val exoPlayer = remember(resolved.id) {
-        val httpFactory = DefaultHttpDataSource.Factory()
+        val httpFactory = OkHttpDataSource.Factory(OkHttpClient())
             .setUserAgent("grod_tv/0.0.1")
-            .setAllowCrossProtocolRedirects(true)
 
         val player = ExoPlayer.Builder(context).build()
 
