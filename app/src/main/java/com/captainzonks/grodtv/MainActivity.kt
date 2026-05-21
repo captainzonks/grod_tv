@@ -3,122 +3,103 @@ package com.captainzonks.grodtv
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.tv.material3.ExperimentalTvMaterial3Api
-import androidx.tv.material3.Text
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.media3.common.MediaItem
-import androidx.media3.datasource.okhttp.OkHttpDataSource
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.source.MergingMediaSource
-import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.ui.PlayerView
-import okhttp3.OkHttpClient
-import com.captainzonks.grodtv.piped.PipedClient
-import com.captainzonks.grodtv.piped.Quality
-import com.captainzonks.grodtv.piped.ResolvedVideo
-import com.captainzonks.grodtv.settings.Settings
-import com.captainzonks.grodtv.settings.settingsStore
-
-// Hardcoded test video. Real flow comes in Phase 3+ (queue + remote API).
-private const val TEST_VIDEO_ID = "dQw4w9WgXcQ"
+import androidx.tv.material3.ExperimentalTvMaterial3Api
+import androidx.tv.material3.Text
+import com.captainzonks.grodtv.api.ApiService
+import com.captainzonks.grodtv.player.PlaybackPhase
+import com.captainzonks.grodtv.player.PlayerService
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Touch the player controller so ExoPlayer is created on the main thread
+        // before any service binds to it.
+        appContainer.playerController
+
+        PlayerService.start(this)
+        ApiService.start(this)
+
         setContent {
-            Box(modifier = Modifier.fillMaxSize()) {
-                PlaybackRoot(TEST_VIDEO_ID)
-            }
+            HomeScreen()
         }
-    }
-}
-
-private sealed interface PlayerUiState {
-    object Loading : PlayerUiState
-    data class Error(val message: String) : PlayerUiState
-    data class Ready(val resolved: ResolvedVideo) : PlayerUiState
-}
-
-@Composable
-private fun PlaybackRoot(videoId: String) {
-    val context = LocalContext.current
-    val settings by context.settingsStore().flow.collectAsState(initial = Settings.Default)
-    var state by remember { mutableStateOf<PlayerUiState>(PlayerUiState.Loading) }
-
-    LaunchedEffect(videoId, settings.pipedApiUrl, settings.defaultQuality) {
-        state = PlayerUiState.Loading
-        val client = PipedClient(settings.pipedApiUrl)
-        client.resolve(videoId, settings.defaultQuality)
-            .onSuccess { state = PlayerUiState.Ready(it) }
-            .onFailure { state = PlayerUiState.Error(it.message ?: it::class.simpleName ?: "unknown") }
-    }
-
-    when (val s = state) {
-        is PlayerUiState.Loading -> CenteredText("Resolving…")
-        is PlayerUiState.Error -> CenteredText("Resolve failed: ${s.message}")
-        is PlayerUiState.Ready -> PlayerSurface(s.resolved)
     }
 }
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-private fun CenteredText(text: String) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(text)
-    }
-}
-
-@Composable
-private fun PlayerSurface(resolved: ResolvedVideo) {
+private fun HomeScreen() {
     val context = LocalContext.current
+    val container = remember { context.appContainer }
 
-    val exoPlayer = remember(resolved.id) {
-        val httpFactory = OkHttpDataSource.Factory(OkHttpClient())
-            .setUserAgent("grod_tv/0.0.1")
+    val playbackState by container.playerController.state.collectAsState()
+    val queue by container.queueRepository.items.collectAsState(initial = emptyList())
+    val nowPlaying by container.queueRepository.current.collectAsState(initial = null)
 
-        val player = ExoPlayer.Builder(context).build()
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
+        // Player surface fills the screen.
+        AndroidView(
+            modifier = Modifier.fillMaxSize(),
+            factory = { ctx ->
+                PlayerView(ctx).apply {
+                    player = container.playerController.player
+                    useController = true
+                }
+            },
+        )
 
-        val source = if (resolved.hasMergingPair()) {
-            val v = ProgressiveMediaSource.Factory(httpFactory)
-                .createMediaSource(MediaItem.fromUri(resolved.videoUrl!!))
-            val a = ProgressiveMediaSource.Factory(httpFactory)
-                .createMediaSource(MediaItem.fromUri(resolved.audioUrl!!))
-            MergingMediaSource(v, a)
-        } else {
-            ProgressiveMediaSource.Factory(httpFactory)
-                .createMediaSource(MediaItem.fromUri(resolved.streamUrl!!))
+        // Overlay status when nothing is playing.
+        if (playbackState.phase == PlaybackPhase.Idle && nowPlaying == null) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(32.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text("grod_tv ready", color = Color.White)
+                Text(
+                    "POST /cast {url=…} on port 7878 to start",
+                    color = Color.White,
+                )
+            }
         }
 
-        player.setMediaSource(source)
-        player.prepare()
-        player.playWhenReady = true
-        player
-    }
-
-    DisposableEffect(resolved.id) {
-        onDispose { exoPlayer.release() }
-    }
-
-    AndroidView(
-        modifier = Modifier.fillMaxSize(),
-        factory = { ctx ->
-            PlayerView(ctx).apply {
-                player = exoPlayer
-                useController = true
+        // Tiny queue overlay top-right when queue is non-empty.
+        if (queue.isNotEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .padding(16.dp),
+            ) {
+                Text("Queue (${queue.size})", color = Color.White)
+                LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                    items(queue, key = { it.pos }) { item ->
+                        Text("${item.pos}. ${item.title}", color = Color.White)
+                    }
+                }
             }
-        },
-    )
+        }
+    }
 }

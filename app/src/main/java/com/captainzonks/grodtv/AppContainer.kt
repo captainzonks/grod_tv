@@ -2,6 +2,7 @@ package com.captainzonks.grodtv
 
 import android.content.Context
 import com.captainzonks.grodtv.piped.PipedClient
+import com.captainzonks.grodtv.player.PlayerController
 import com.captainzonks.grodtv.queue.GrodTvDatabase
 import com.captainzonks.grodtv.queue.QueueRepository
 import com.captainzonks.grodtv.settings.Settings
@@ -16,16 +17,16 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import okhttp3.OkHttpClient
 
-class AppContainer(context: Context) {
+class AppContainer(private val appContext: Context) {
 
     val appScope: CoroutineScope = CoroutineScope(SupervisorJob())
 
-    val settingsStore: SettingsStore = context.settingsStore()
+    val settingsStore: SettingsStore = appContext.settingsStore()
 
     val settings: StateFlow<Settings> = settingsStore.flow
         .stateIn(appScope, SharingStarted.Eagerly, Settings.Default)
 
-    private val httpClient: OkHttpClient = OkHttpClient.Builder().build()
+    val httpClient: OkHttpClient = OkHttpClient.Builder().build()
 
     val pipedClient: StateFlow<PipedClient> = settings
         .map { it.pipedApiUrl }
@@ -33,12 +34,17 @@ class AppContainer(context: Context) {
         .map { url -> PipedClient(baseUrl = url, http = httpClient) }
         .stateIn(appScope, SharingStarted.Eagerly, PipedClient(Settings.Default.pipedApiUrl, httpClient))
 
-    private val database: GrodTvDatabase = GrodTvDatabase.build(context)
+    private val database: GrodTvDatabase = GrodTvDatabase.build(appContext)
 
     val queueRepository: QueueRepository = QueueRepository(
         queue = database.queueDao(),
         nowPlaying = database.nowPlayingDao(),
     )
+
+    /** Lazily-created singleton — main-thread ExoPlayer creation requires Looper. */
+    val playerController: PlayerController by lazy {
+        PlayerController(appContext, httpClient)
+    }
 }
 
 class GrodTvApp : android.app.Application() {
