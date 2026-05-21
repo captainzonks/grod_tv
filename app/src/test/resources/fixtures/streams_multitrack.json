@@ -1,0 +1,48 @@
+{
+  "title": "Synthetic Multi-Track Test",
+  "duration": 600,
+  "videoStreams": [
+    {
+      "url": "https://example.invalid/v_1080.mp4",
+      "mimeType": "video/mp4",
+      "videoOnly": true,
+      "quality": "1080p",
+      "height": 1080,
+      "format": "MPEG_4",
+      "codec": "avc1.640028",
+      "itag": 137
+    }
+  ],
+  "audioStreams": [
+    {
+      "url": "https://example.invalid/a_de_dub.m4a",
+      "mimeType": "audio/mp4",
+      "bitrate": 130000,
+      "format": "M4A",
+      "codec": "mp4a.40.2",
+      "itag": 140,
+      "audioTrackType": "DUBBED",
+      "audioTrackLocale": "de-DE"
+    },
+    {
+      "url": "https://example.invalid/a_en_original.m4a",
+      "mimeType": "audio/mp4",
+      "bitrate": 48000,
+      "format": "M4A",
+      "codec": "mp4a.40.5",
+      "itag": 139,
+      "audioTrackType": "ORIGINAL",
+      "audioTrackLocale": "en-US"
+    },
+    {
+      "url": "https://example.invalid/a_es_dub.m4a",
+      "mimeType": "audio/mp4",
+      "bitrate": 130000,
+      "format": "M4A",
+      "codec": "mp4a.40.2",
+      "itag": 140,
+      "audioTrackType": "DUBBED",
+      "audioTrackLocale": "es-ES"
+    }
+  ]
+}
