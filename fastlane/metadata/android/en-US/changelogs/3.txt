@@ -1,0 +1,7 @@
+First public release with full asset set.
+
+* App icon, adaptive icon, and Android TV launcher banner.
+* F-Droid metadata images (icon, tvBanner, featureGraphic).
+* README hero image matching the grod sibling repo's branding.
+
+No runtime behavior changes since 0.1.0; this is the publishable build.
