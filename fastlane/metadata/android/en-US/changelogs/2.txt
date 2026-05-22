@@ -1,0 +1,8 @@
+First public release.
+
+* Compose for TV UI: first-run, home (with D-pad-UP queue overlay), settings.
+* Media3 ExoPlayer with MergingMediaSource for 1080p Piped streams.
+* Persistent Room-backed queue with auto-advance.
+* LAN HTTP API on port 7878, wire-compatible with the grod Rust daemon.
+* mDNS service advertisement (_grod._tcp.local., device=grod-tv).
+* Settings: Piped URL, quality, PIN, connectivity test.
