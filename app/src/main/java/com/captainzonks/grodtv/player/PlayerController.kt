@@ -39,7 +39,7 @@ class PlayerController(
     okHttpClient: OkHttpClient,
 ) {
     private val httpFactory = OkHttpDataSource.Factory(okHttpClient)
-        .setUserAgent("grod_tv/0.0.1")
+        .setUserAgent("grod_tv/0.1.0")
 
     val player: ExoPlayer = ExoPlayer.Builder(context).build()
 
