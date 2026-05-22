@@ -56,6 +56,7 @@ class PlayerService : MediaSessionService() {
     private suspend fun advance() {
         val head = container.queueRepository.popHead() ?: run {
             container.queueRepository.clearNowPlaying()
+            container.playerController.stop()
             return
         }
         val client = container.pipedClient.value

@@ -24,6 +24,7 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.0.1"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnit4"
     }
 
     buildTypes {
@@ -81,7 +82,15 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
+    implementation(libs.androidx.navigation.compose)
+
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.androidx.room.testing)
+
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.rules)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.room.testing)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
 }
