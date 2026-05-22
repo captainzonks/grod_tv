@@ -24,6 +24,7 @@ class PlayerService : MediaSessionService() {
     private lateinit var container: AppContainer
     private var session: MediaSession? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private lateinit var advancer: AutoAdvancer
 
     override fun onCreate() {
         super.onCreate()
@@ -32,10 +33,20 @@ class PlayerService : MediaSessionService() {
         val player = container.playerController.player
         session = MediaSession.Builder(this, player).build()
 
+        advancer = AutoAdvancer(
+            popHead = { container.queueRepository.popHead() },
+            clearNowPlaying = { container.queueRepository.clearNowPlaying() },
+            setNowPlaying = { id, title -> container.queueRepository.setNowPlaying(id, title) },
+            resolve = { id, q -> container.pipedClient.value.resolve(id, q) },
+            load = { v -> container.playerController.load(v) },
+            stop = { container.playerController.stop() },
+            currentQuality = { container.settings.value.defaultQuality },
+        )
+
         // Auto-advance: when current track ends, pop queue head, resolve, play.
         container.playerController.setOnEnded(object : OnEndedCallback {
             override fun onEnded() {
-                scope.launch { advance() }
+                scope.launch { advancer.advance() }
             }
         })
     }
@@ -51,25 +62,6 @@ class PlayerService : MediaSessionService() {
         session?.run { release() }
         session = null
         super.onDestroy()
-    }
-
-    private suspend fun advance() {
-        val head = container.queueRepository.popHead() ?: run {
-            container.queueRepository.clearNowPlaying()
-            container.playerController.stop()
-            return
-        }
-        val client = container.pipedClient.value
-        val quality = container.settings.value.defaultQuality
-        client.resolve(head.videoId, quality)
-            .onSuccess { video ->
-                container.playerController.load(video)
-                container.queueRepository.setNowPlaying(video.id, video.title)
-            }
-            .onFailure {
-                // Resolve failed — skip and try next.
-                advance()
-            }
     }
 
     private fun startForegroundCompat() {
