@@ -60,7 +60,7 @@ org.gradle.configuration-cache=true
 android.useAndroidX=true
 ```
 
-`_JAVA_OPTIONS=-Djava.util.prefs.userRoot=/home/barhamm/.config/java` is set in the user environment to redirect Java's prefs from `~/.java/.userPrefs/` (a violation of `XDG_CONFIG_HOME`). This is unrelated to the build itself but it affects the **AVD path** — see [`emulator.md`](emulator.md).
+`_JAVA_OPTIONS=-Djava.util.prefs.userRoot=$HOME/.config/java` may be set in the user environment to redirect Java's prefs from `~/.java/.userPrefs/` (a violation of `XDG_CONFIG_HOME`). This is unrelated to the build itself but it affects the **AVD path** — see [`emulator.md`](emulator.md).
 
 ---
 

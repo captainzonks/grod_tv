@@ -1,0 +1,14 @@
+# https://docs.gitguardian.com/ggshield-docs/reference/configuration
+# ggshield secret-scan configuration
+
+version: 2
+
+secret:
+  ignored_paths:
+    # Captured Piped API responses contain googlevideo signed-URL query params
+    # that look like credentials but are short-lived public CDN tokens.
+    - "app/src/test/resources/fixtures/**"
+    # Build outputs / generated code.
+    - "app/build/**"
+    - "build/**"
+    - ".gradle/**"

@@ -19,7 +19,7 @@ data class Settings(
 ) {
     companion object {
         val Default = Settings(
-            pipedApiUrl = "https://tubeapi.zonks.org",
+            pipedApiUrl = "https://pipedapi.kavin.rocks",
             defaultQuality = Quality.P1080,
             apiPin = "",
             firstRunSeen = false,

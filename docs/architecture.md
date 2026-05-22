@@ -142,7 +142,7 @@ These cost real debugging time during Phases 1–4. Memorize them.
 
 ### 1. `OkHttpDataSource`, not `DefaultHttpDataSource`
 
-`DefaultHttpDataSource` drops Cloudflare-fronted googlevideo connections during `FragmentedMp4Extractor.sniff()` with `ProtocolException: unexpected end of stream`. Reproduces every time on the API 36 TV emulator against `tubeproxy.zonks.org` itag 137 URLs that return HTTP 206 fine from `curl` on the host. Always use:
+`DefaultHttpDataSource` drops Cloudflare-fronted googlevideo connections during `FragmentedMp4Extractor.sniff()` with `ProtocolException: unexpected end of stream`. Reproduces every time on the API 36 TV emulator against any Cloudflare-fronted Piped proxy serving itag 137 URLs that return HTTP 206 fine from `curl` on the host. Always use:
 
 ```kotlin
 val httpFactory = OkHttpDataSource.Factory(okHttpClient).setUserAgent("grod_tv/0.0.1")

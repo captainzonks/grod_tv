@@ -20,7 +20,7 @@ The `tv_1080p` device profile is shipped with the SDK and matches a 1920×1080 A
 
 ### `ANDROID_AVD_HOME`
 
-Our environment exports `_JAVA_OPTIONS=-Djava.util.prefs.userRoot=/home/barhamm/.config/java` (an XDG-compliance fix). This redirects Java's `Preferences` root, and **as a side effect** the Android SDK's `avdmanager` creates AVDs under `~/.config/.android/avd/` instead of `~/.android/avd/`.
+If you set `_JAVA_OPTIONS=-Djava.util.prefs.userRoot=$HOME/.config/java` in your environment (an XDG-compliance fix), Java's `Preferences` root is redirected, and **as a side effect** the Android SDK's `avdmanager` creates AVDs under `~/.config/.android/avd/` instead of `~/.android/avd/`.
 
 The `emulator` binary still **looks for AVDs under `~/.android/avd/`** unless told otherwise. Without the override it cannot find the AVD you just created.
 

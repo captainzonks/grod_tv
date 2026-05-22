@@ -172,7 +172,7 @@ All settings live in DataStore Preferences and are edited from the in-app **Sett
 
 | Setting              | Default                            | Notes                                          |
 | -------------------- | ---------------------------------- | ---------------------------------------------- |
-| Piped API URL        | `https://tubeapi.zonks.org`        | Override with your own instance                |
+| Piped API URL        | `https://pipedapi.kavin.rocks`        | Override with your own instance                |
 | Default quality      | `1080p`                            | `best \| 1080p \| 720p \| 480p \| 360p`        |
 | API PIN              | empty (open access)                | Sent in `X-Grod-Pin` header when set           |
 | First-run seen       | `false`                            | Flipped to `true` after dismissing first-run   |

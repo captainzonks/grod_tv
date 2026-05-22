@@ -17,7 +17,7 @@ data class Settings(
 
 | Preference key       | Type    | Default                       | Notes                                            |
 | -------------------- | ------- | ----------------------------- | ------------------------------------------------ |
-| `piped_api_url`      | string  | `https://tubeapi.zonks.org`   | Trailing slash is stripped on write              |
+| `piped_api_url`      | string  | `https://pipedapi.kavin.rocks`   | Trailing slash is stripped on write              |
 | `default_quality`    | string  | `1080p`                       | One of `best`, `1080p`, `720p`, `480p`, `360p`   |
 | `api_pin`            | string  | `""`                          | Empty disables `X-Grod-Pin` auth                 |
 | `first_run_seen`     | boolean | `false`                       | Set to `true` when the user dismisses first-run  |
