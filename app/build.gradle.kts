@@ -27,9 +27,35 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Release signing pulls keystore + passwords from environment variables
+    // populated by the release CI workflow (.github/workflows/release.yml).
+    // Local builds without these env vars fall through to the default
+    // (debug) signing — assembleRelease will still produce an unsigned APK.
+    val releaseKeystorePath = System.getenv("RELEASE_KEYSTORE_PATH")
+    val releaseKeystorePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD")
+    val releaseKeyAlias = System.getenv("RELEASE_KEY_ALIAS")
+    val releaseKeyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+    val hasReleaseSigning = listOf(
+        releaseKeystorePath, releaseKeystorePassword, releaseKeyAlias, releaseKeyPassword,
+    ).all { !it.isNullOrBlank() }
+
+    if (hasReleaseSigning) {
+        signingConfigs {
+            create("release") {
+                storeFile = file(releaseKeystorePath!!)
+                storePassword = releaseKeystorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
