@@ -1,0 +1,34 @@
+grod_tv is the Android TV companion to the grod Rust CLI. It moves queue
+management, Piped stream resolution, and media playback onto the TV itself,
+so a separate laptop daemon is no longer required for Shield TV,
+Chromecast with Google TV, Fire TV Stick, Sony/Hisense Google TV, and
+similar devices.
+
+Key features:
+
+* Compose-for-TV foreground UI with D-pad navigation.
+* Media3 ExoPlayer backend that uses MergingMediaSource to play Piped's
+  separate video-only + audio-only streams at 1080p without transcoding.
+* Configurable quality preference (best / 1080p / 720p / 480p / 360p),
+  automatic fallback to muxed mp4 when a target quality is unavailable.
+* Original-audio-track preference to skip auto-dubs on multi-language
+  videos.
+* Persistent queue across reboots (Room).
+* Auto-advance: when the current track ends, the next queued video
+  resolves and plays automatically; failed resolves skip to the next.
+* MediaSessionService foreground service so playback survives
+  backgrounding and surfaces in the Android TV system UI.
+* Built-in LAN HTTP API on port 7878 (Ktor) that is byte-compatible
+  with the grod Rust daemon. Optional X-Grod-Pin header authentication.
+* Automatic LAN discovery via mDNS (_grod._tcp.local.) with TXT records
+  including device=grod-tv so phone remotes can disambiguate.
+* First-run screen shows the device's LAN IP and port so phone remotes
+  can be configured without a wire-sniffer.
+* Settings screen for Piped API URL, default quality, and PIN, with a
+  built-in connectivity test that probes the configured Piped instance.
+
+grod_tv requires a Piped instance — either a public one (the default is
+pipedapi.kavin.rocks) or a self-hosted deployment. No Google Play
+Services are used at runtime. Source and full developer docs live at:
+
+  https://github.com/captainzonks/grod_tv
