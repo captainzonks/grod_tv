@@ -27,8 +27,9 @@ fastlane/metadata/android/en-US/
 | `short_description.txt`       | ✅ committed                          |
 | `full_description.txt`        | ✅ committed                          |
 | `changelogs/2.txt`            | ✅ committed (matches versionCode 2 = v0.1.0) |
-| `images/icon.png`             | ❌ TODO — needs a 512×512 source       |
-| `images/tvBanner.png`         | ❌ TODO — **F-Droid blocker for TV apps** |
+| `images/icon.png`             | ✅ committed — 512×512 logo on `#22053E` brand purple |
+| `images/tvBanner.png`         | ✅ committed — 1280×720 PNG (plus `.webp` mirror)     |
+| `images/featureGraphic.png`   | ✅ committed — 1024×500 cropped from banner            |
 | `images/phoneScreenshots/`    | ❌ optional, deferred                  |
 
 The text content is enough to validate the metadata structure. Submitting to

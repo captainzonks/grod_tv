@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/grod-tv-logo-01.webp" alt="grod_tv logo" width="280"/>
+
 # grod_tv
 
 **Android TV companion to [grod](https://github.com/captainzonks/grod) — runs the queue, the Piped resolver, and the player on the TV itself.**
