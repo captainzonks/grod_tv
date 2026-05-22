@@ -32,10 +32,11 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: |
-            platform-tools
-            platforms;android-35
-            build-tools;35.0.0
+          # The ubuntu-latest runner image ships with platform-tools +
+          # all common Android API levels preinstalled under
+          # /usr/local/lib/android/sdk; this step just ensures ANDROID_HOME
+          # and licenses are configured.
+          packages: ''
 
       - name: Setup Gradle (with build cache)
         uses: gradle/actions/setup-gradle@v4
