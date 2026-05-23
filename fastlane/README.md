@@ -30,6 +30,7 @@ fastlane/metadata/android/en-US/
 | `images/icon.png`             | ✅ committed — 512×512 logo on `#22053E` brand purple |
 | `images/tvBanner.png`         | ✅ committed — 1280×720 PNG (plus `.webp` mirror)     |
 | `images/featureGraphic.png`   | ✅ committed — 1024×500 cropped from banner            |
+| `images/tvScreenshots/`       | ✅ committed — 5 screenshots from Nvidia Shield, 1080p, optimized PNG |
 | `images/phoneScreenshots/`    | ❌ optional, deferred                  |
 
 The text content is enough to validate the metadata structure. Submitting to
