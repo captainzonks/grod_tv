@@ -72,7 +72,8 @@ private fun Application.configure(c: AppContainer, pin: String) {
                 PlaybackPhase.Playing -> "playing"
                 PlaybackPhase.Paused -> "paused"
                 PlaybackPhase.Buffering -> "buffering"
-                else -> "idle"
+                PlaybackPhase.Error -> "error"
+                PlaybackPhase.Ended, PlaybackPhase.Idle -> "idle"
             }
             val nowPlaying = c.queueRepository.getNowPlaying()
             val queue = c.queueRepository.list().map { QueueEntryDto(it.pos, it.videoId, it.title) }

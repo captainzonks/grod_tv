@@ -1,0 +1,13 @@
+D-pad focus fixes and small wire-protocol cleanup.
+
+* HomeScreen: Settings button is now reachable from the idle state
+  (D-pad CENTER opens settings instead of falling through to the
+  PlayerView controls). PlayerView no longer steals D-pad input;
+  remotes drive playback through grod_remote / the HTTP API.
+* FirstRunScreen: OK button auto-focused on entry.
+* SettingsScreen: Piped URL field auto-focused; Back navigates home.
+* /status: PlaybackPhase.Error now surfaces as state="error" instead
+  of being silently mapped to "idle".
+* Release workflow: .sha256 sidecar references the final
+  grod_tv-v<tag>.apk filename so `sha256sum -c` passes out of the
+  box.

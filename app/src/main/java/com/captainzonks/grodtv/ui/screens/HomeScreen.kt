@@ -1,6 +1,7 @@
 package com.captainzonks.grodtv.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,7 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -35,10 +37,23 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.ui.PlayerView
 import androidx.tv.material3.Button
+import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Text
 import com.captainzonks.grodtv.appContainer
 import com.captainzonks.grodtv.player.PlaybackPhase
+import com.captainzonks.grodtv.ui.GrodColors
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun grodButtonColors() = ButtonDefaults.colors(
+    containerColor = GrodColors.Slate,
+    contentColor = Color.White,
+    focusedContainerColor = GrodColors.BrandPurpleFocused,
+    focusedContentColor = Color.White,
+    pressedContainerColor = GrodColors.BrandPurplePressed,
+    pressedContentColor = Color.White,
+)
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -51,19 +66,56 @@ fun HomeScreen(onOpenSettings: () -> Unit) {
     val nowPlaying by container.queueRepository.current.collectAsState(initial = null)
 
     var overlayVisible by remember { mutableStateOf(false) }
-    val rootFocus = remember { FocusRequester() }
+
+    // Focus requesters for the parts of the screen that should claim focus
+    // when shown. Compose for TV does not propagate focus into AndroidView
+    // backed by Media3 PlayerView on Shield, so we anchor it on our own
+    // composables.
+    val settingsButtonFocus = remember { FocusRequester() }
+    val overlayCloseFocus = remember { FocusRequester() }
+
+    val idle = playbackState.phase == PlaybackPhase.Idle && nowPlaying == null
+
+    // Auto-focus the right element when state changes. The Compose Button is
+    // not in the tree until its parent `if (idle)` / `if (overlayVisible)`
+    // branch composes, so we yield one frame before requesting focus to let
+    // the FocusRequester attach to the Button's node.
+    LaunchedEffect(idle, overlayVisible) {
+        kotlinx.coroutines.delay(50L)
+        runCatching {
+            when {
+                overlayVisible -> overlayCloseFocus.requestFocus()
+                idle -> settingsButtonFocus.requestFocus()
+            }
+        }
+    }
 
     Box(
         Modifier
             .fillMaxSize()
             .background(Color.Black)
-            .focusRequester(rootFocus)
-            .onKeyEvent { e ->
-                if (e.type != KeyEventType.KeyDown) return@onKeyEvent false
+            // Capture D-pad UP before PlayerView can swallow it so overlay
+            // can be opened from any focus state. Back closes overlay; if
+            // the overlay is already closed, propagate so the activity can
+            // fall through to its default Back handler.
+            .onPreviewKeyEvent { e ->
+                if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 when (e.key) {
-                    Key.DirectionUp -> { overlayVisible = true; true }
+                    Key.DirectionUp -> {
+                        if (!overlayVisible) {
+                            overlayVisible = true
+                            true
+                        } else {
+                            false
+                        }
+                    }
                     Key.Back, Key.Escape -> {
-                        if (overlayVisible) { overlayVisible = false; true } else false
+                        if (overlayVisible) {
+                            overlayVisible = false
+                            true
+                        } else {
+                            false
+                        }
                     }
                     else -> false
                 }
@@ -74,12 +126,15 @@ fun HomeScreen(onOpenSettings: () -> Unit) {
             factory = { ctx ->
                 PlayerView(ctx).apply {
                     player = container.playerController.player
-                    useController = true
+                    // Disable PlayerView's own controller so it does not
+                    // steal D-pad center/back from our Compose layer.
+                    // Remotes drive the player through grod_remote / the
+                    // HTTP API, not the on-screen PlayerView controls.
+                    useController = false
                 }
             },
         )
 
-        val idle = playbackState.phase == PlaybackPhase.Idle && nowPlaying == null
         if (idle) {
             Column(
                 modifier = Modifier
@@ -91,7 +146,11 @@ fun HomeScreen(onOpenSettings: () -> Unit) {
                 Text("grod_tv ready", color = Color.White, fontSize = 32.sp)
                 Text("POST /cast {url=…} on port 7878 to start", color = Color.LightGray)
                 Spacer(Modifier.height(24.dp))
-                Button(onClick = onOpenSettings) { Text("Settings") }
+                Button(
+                    onClick = onOpenSettings,
+                    colors = grodButtonColors(),
+                    modifier = Modifier.focusRequester(settingsButtonFocus),
+                ) { Text("Settings") }
             }
         }
 
@@ -101,6 +160,7 @@ fun HomeScreen(onOpenSettings: () -> Unit) {
                 queue = queue.map { it.pos to it.title },
                 onOpenSettings = onOpenSettings,
                 onDismiss = { overlayVisible = false },
+                closeFocus = overlayCloseFocus,
             )
         }
     }
@@ -113,6 +173,7 @@ private fun QueueOverlay(
     queue: List<Pair<Int, String>>,
     onOpenSettings: () -> Unit,
     onDismiss: () -> Unit,
+    closeFocus: FocusRequester,
 ) {
     Box(
         Modifier
@@ -135,9 +196,19 @@ private fun QueueOverlay(
                 }
             }
             Spacer(Modifier.height(16.dp))
-            Button(onClick = onOpenSettings) { Text("Settings") }
+            Button(
+                onClick = onOpenSettings,
+                colors = grodButtonColors(),
+                modifier = Modifier.focusable(),
+            ) { Text("Settings") }
             Spacer(Modifier.height(8.dp))
-            Button(onClick = onDismiss) { Text("Close") }
+            Button(
+                onClick = onDismiss,
+                colors = grodButtonColors(),
+                modifier = Modifier
+                    .focusRequester(closeFocus)
+                    .focusable(),
+            ) { Text("Close") }
         }
     }
 }

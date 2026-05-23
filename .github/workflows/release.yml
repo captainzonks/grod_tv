@@ -58,21 +58,25 @@ jobs:
           "$BUILD_TOOLS/apksigner" verify --verbose "$APK"
           "$BUILD_TOOLS/apksigner" verify --print-certs "$APK"
 
+      - name: Stage release artifacts
+        id: stage
+        run: |
+          mkdir -p release-artifacts
+          RELEASE_NAME=grod_tv-${{ github.ref_name }}.apk
+          cp app/build/outputs/apk/release/app-release.apk \
+             release-artifacts/"$RELEASE_NAME"
+          echo "release_name=$RELEASE_NAME" >> "$GITHUB_OUTPUT"
+
       - name: Compute SHA-256
         id: sha
         run: |
-          APK=app/build/outputs/apk/release/app-release.apk
-          SHA256=$(sha256sum "$APK" | awk '{print $1}')
+          cd release-artifacts
+          RELEASE_NAME=${{ steps.stage.outputs.release_name }}
+          SHA256=$(sha256sum "$RELEASE_NAME" | awk '{print $1}')
           echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
-          echo "$SHA256  app-release.apk" > "$APK.sha256"
-
-      - name: Stage release artifacts
-        run: |
-          mkdir -p release-artifacts
-          cp app/build/outputs/apk/release/app-release.apk \
-             release-artifacts/grod_tv-${{ github.ref_name }}.apk
-          cp app/build/outputs/apk/release/app-release.apk.sha256 \
-             release-artifacts/grod_tv-${{ github.ref_name }}.apk.sha256
+          # Sidecar references the final renamed artifact so `sha256sum -c`
+          # passes cleanly against the downloaded file.
+          echo "$SHA256  $RELEASE_NAME" > "$RELEASE_NAME.sha256"
 
       - name: Create draft release with artifacts
         uses: softprops/action-gh-release@v2
