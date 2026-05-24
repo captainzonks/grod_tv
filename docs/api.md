@@ -81,7 +81,7 @@ Request body:
 | Field   | Type   | Required | Notes                                                              |
 | ------- | ------ | -------- | ------------------------------------------------------------------ |
 | `url`   | string | yes      | YouTube URL, Piped URL, `youtu.be/<id>`, or bare 11-char video ID  |
-| `force` | bool   | no       | If `true` and the player is busy, stop and replace immediately     |
+| `force` | bool   | no       | If `true` and the player is busy, stop, clear now-playing, and re-resolve at the current default quality |
 
 Responses:
 
@@ -89,6 +89,11 @@ Responses:
 - **200 OK** (player was busy, no `force`) — `{"pos":3,"title":"…"}` (queued)
 - **400 Bad Request** — could not extract a video ID
 - **500 Internal Server Error** — Piped resolve or title fetch failed
+
+> **`force=true` semantics:** when forcing playback, the daemon stops the
+> player AND clears the now-playing row before re-resolving. This guarantees
+> that re-casting the same URL after raising the default quality picks up
+> the new value rather than silently replaying the cached state.
 
 ---
 
@@ -137,14 +142,16 @@ $ curl -X DELETE http://192.168.1.42:7878/queue
 
 ### `POST /skip`
 
-Stop the current track and auto-advance to the next queued video.
+Stop the current track and clear the now-playing pointer.
 
 ```bash
 $ curl -X POST http://192.168.1.42:7878/skip
 {"ok":true}
 ```
 
-Internally this calls `PlayerController.stop()`, which triggers `PlaybackPhase.Idle`; `AutoAdvancer` is wired to `Player.STATE_ENDED` only, not `STATE_IDLE`, so a manual skip won't auto-load the next track until you call `/cast` again. (This is a deliberate semantic divergence from `grod` — we may align it in a follow-up.)
+Internally this calls `PlayerController.stop()` (which transitions to `PlaybackPhase.Idle`) and `QueueRepository.clearNowPlaying()`. `AutoAdvancer` is wired to `Player.STATE_ENDED` only, not `STATE_IDLE`, so a manual skip won't auto-load the next track until you call `/cast` again. (This is a deliberate semantic divergence from `grod` — we may align it in a follow-up.)
+
+> **Note:** prior to v0.1.3 `/skip` left the previous track's title visible in `/status.now_playing` until the next cast resolved. Now it is cleared atomically with the player stop.
 
 ---
 
