@@ -1,6 +1,8 @@
 package com.captainzonks.grodtv.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -25,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -54,6 +58,20 @@ private fun grodButtonColors() = ButtonDefaults.colors(
     pressedContainerColor = GrodColors.BrandPurplePressed,
     pressedContentColor = Color.White,
 )
+
+// Draw a thick brand-purple ring while the modified composable is focused.
+// Mirrors the helper in SettingsScreen so overlay buttons read at TV
+// viewing distance — the bare color tween on the Slate→BrandPurple swap is
+// too subtle against the dark overlay scrim.
+private fun Modifier.focusRing(focused: Boolean): Modifier =
+    if (focused) {
+        this.border(
+            BorderStroke(3.dp, GrodColors.BrandPurpleFocused),
+            shape = RoundedCornerShape(12.dp),
+        )
+    } else {
+        this
+    }
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -184,6 +202,8 @@ private fun QueueOverlay(
     onDismiss: () -> Unit,
     closeFocus: FocusRequester,
 ) {
+    var settingsFocused by remember { mutableStateOf(false) }
+    var closeFocused by remember { mutableStateOf(false) }
     Box(
         Modifier
             .fillMaxSize()
@@ -208,14 +228,21 @@ private fun QueueOverlay(
             Button(
                 onClick = onOpenSettings,
                 colors = grodButtonColors(),
-                modifier = Modifier.focusable(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onFocusChanged { settingsFocused = it.isFocused }
+                    .focusRing(settingsFocused)
+                    .focusable(),
             ) { Text("Settings") }
             Spacer(Modifier.height(8.dp))
             Button(
                 onClick = onDismiss,
                 colors = grodButtonColors(),
                 modifier = Modifier
+                    .fillMaxWidth()
                     .focusRequester(closeFocus)
+                    .onFocusChanged { closeFocused = it.isFocused }
+                    .focusRing(closeFocused)
                     .focusable(),
             ) { Text("Close") }
         }
