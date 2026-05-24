@@ -157,6 +157,7 @@ private fun Application.configure(c: AppContainer, pin: String) {
         post("/skip") {
             if (!call.authOk(pin)) return@post call.respond(HttpStatusCode.Unauthorized, ErrorResponse("invalid PIN"))
             c.playerController.stop()
+            c.queueRepository.clearNowPlaying()
             call.respond(OkResponse())
         }
 

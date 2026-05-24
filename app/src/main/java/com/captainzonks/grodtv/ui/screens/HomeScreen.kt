@@ -74,7 +74,13 @@ fun HomeScreen(onOpenSettings: () -> Unit) {
     val settingsButtonFocus = remember { FocusRequester() }
     val overlayCloseFocus = remember { FocusRequester() }
 
-    val idle = playbackState.phase == PlaybackPhase.Idle && nowPlaying == null
+    // Idle UI = player not currently engaged. nowPlaying can linger in Room
+    // after a /skip or across cold starts; gating on it would hide the
+    // welcome screen and leave a black PlayerView with no Settings button.
+    val idle = when (playbackState.phase) {
+        PlaybackPhase.Idle, PlaybackPhase.Ended -> true
+        else -> false
+    }
 
     // Auto-focus the right element when state changes. The Compose Button is
     // not in the tree until its parent `if (idle)` / `if (overlayVisible)`
