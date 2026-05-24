@@ -91,6 +91,7 @@ private fun Application.configure(c: AppContainer, pin: String) {
                     quality = quality,
                     position = position,
                     duration = duration,
+                    pipedUrl = settings.pipedApiUrl,
                 )
             )
         }
@@ -227,6 +228,24 @@ private fun Application.configure(c: AppContainer, pin: String) {
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("invalid quality '${body.quality}': use best|1080p|720p|480p|360p"))
             c.settingsStore.setDefaultQuality(q)
             call.respond(QualitySetResponse(quality = q.label))
+        }
+
+        post("/piped-url") {
+            if (!call.authOk(pin)) return@post call.respond(HttpStatusCode.Unauthorized, ErrorResponse("invalid PIN"))
+            val body = call.receive<PipedUrlBody>()
+            val url = body.url.trim()
+            // Reject obviously malformed URLs early so PipedClient cannot
+            // be reconstructed against garbage and silently fail every cast.
+            if (!(url.startsWith("http://") || url.startsWith("https://"))) {
+                return@post call.respond(
+                    HttpStatusCode.BadRequest,
+                    ErrorResponse("piped url must start with http:// or https://"),
+                )
+            }
+            c.settingsStore.setPipedApiUrl(url)
+            // settingsStore.setPipedApiUrl trims trailing slashes, so echo
+            // what we actually persisted rather than the raw request body.
+            call.respond(PipedUrlSetResponse(pipedUrl = url.trimEnd('/')))
         }
     }
 }

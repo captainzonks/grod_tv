@@ -25,6 +25,7 @@ data class StatusResponse(
     val quality: String,
     val position: Long? = null,
     val duration: Long? = null,
+    @SerialName("piped_url") val pipedUrl: String? = null,
 )
 
 @Serializable
@@ -41,6 +42,16 @@ data class SeekBody(
 @Serializable
 data class QualityBody(
     val quality: String,
+)
+
+@Serializable
+data class PipedUrlBody(
+    val url: String,
+)
+
+@Serializable
+data class PipedUrlSetResponse(
+    @SerialName("piped_url") val pipedUrl: String,
 )
 
 @Serializable
