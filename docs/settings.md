@@ -28,15 +28,15 @@ data class Settings(
 
 The Settings screen is reachable from Home → D-pad UP → Settings (or directly via nav if first-run is incomplete). Each field persists on change:
 
-- **Piped API URL** — `OutlinedTextField` with URI keyboard, `singleLine=true`. The trailing slash is trimmed by `SettingsStore.setPipedApiUrl`.
-- **Default quality** — `Button` that opens a `DropdownMenu` enumerating `Quality.entries`. The selected value is written immediately.
-- **API PIN** — `OutlinedTextField` with `NumberPassword` keyboard and `PasswordVisualTransformation`. An empty value clears the PIN (and disables auth).
-- **Test connection** — instantiates a one-shot `PipedClient(typedUrl, container.httpClient)` and calls `search("test")`. Surfaces:
+- **Piped API URL** — a focusable read-only row (`EditableSettingRow`) that opens a modal `TextEntryDialog` on D-pad CENTER. The dialog hosts an `OutlinedTextField` (URI keyboard, `singleLine=true`) and is the *only* place the soft IME pops; this keeps D-pad traversal across rows from accidentally summoning the on-screen keyboard. The trailing slash is trimmed by `SettingsStore.setPipedApiUrl`.
+- **Default quality** — `Button` (`fillMaxWidth`) that opens a `DropdownMenu` enumerating `Quality.entries`. The selected value is written immediately. Focused state is highlighted with a 3.dp `BrandPurpleFocused` ring (`Modifier.focusRing(focused)`).
+- **API PIN** — same `EditableSettingRow` pattern; the dialog uses `NumberPassword` keyboard with `PasswordVisualTransformation`. The row displays `•` characters when set, `—` when empty. An empty submitted value clears the PIN (and disables auth).
+- **Test connection** — full-width Button with the same focus ring treatment. Instantiates a one-shot `PipedClient(settings.pipedApiUrl, container.httpClient)` and calls `search("test")`. Status renders on its own line beneath the button:
   - `Testing…` (yellow) while in flight
   - `OK (N results)` (green) on `Result.success`
   - `FAIL: <error message>` (red) on `Result.failure`
 
-The test does **not** use the persisted URL — it tests whatever is in the text field right now, so you can validate a new server before committing to it.
+The test always uses the **currently persisted** URL (the row layout has no in-flight typed value to consult — the dialog commits on Save before closing).
 
 ---
 
@@ -81,7 +81,7 @@ This nukes the queue (Room DB), the Settings (DataStore), and any cached HTTP cr
 3. Add a `suspend fun setX(value: T)` mutator. DataStore handles thread-safety; no need to wrap in `withContext`.
 4. Update the default in `Settings.Default` so existing installs migrate cleanly (DataStore returns `null` for unset keys; the read site provides the default).
 5. If the setting affects an `AppContainer`-managed singleton (like `pipedApiUrl` does for `PipedClient`), wire a `settings.map { ... }.stateIn(...)` so it re-derives.
-6. Add a control in `SettingsScreen.kt` and persist on change with a `LaunchedEffect(fieldState)`.
+6. Add a control in `SettingsScreen.kt`. For free-text values, add a new `EditTarget` variant and an `EditableSettingRow` so the on-screen IME only appears inside the modal dialog. For one-shot picks (enums / booleans), a `Button` + `DropdownMenu` is the convention.
 
 ---
 
