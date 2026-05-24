@@ -48,7 +48,8 @@ $ curl -sS http://192.168.1.42:7878/status
   "daemon": true,
   "quality": "1080p",
   "position": 42,
-  "duration": 213
+  "duration": 213,
+  "piped_url": "https://pipedapi.kavin.rocks"
 }
 ```
 
@@ -61,6 +62,7 @@ $ curl -sS http://192.168.1.42:7878/status
 | `quality`     | string      | label of currently loaded video (`1080p`, `360p`, …) or settings default if idle |
 | `position`    | int/null    | seconds into the current track, or `null` if no media loaded           |
 | `duration`    | int/null    | total seconds, or `null` if unknown                                    |
+| `piped_url`   | string/null | Piped API base URL the daemon is currently configured to use. `null` on daemons older than the `/piped-url` endpoint. |
 
 > **Known issue:** when the player is in `PlaybackPhase.Error`, `state` is currently reported as `idle`. Tracked for a follow-up.
 
@@ -219,6 +221,28 @@ $ curl -X POST http://192.168.1.42:7878/quality \
 ```
 
 Valid values: `best`, `1080p`, `720p`, `480p`, `360p`. Other strings return `400`. Existing in-flight playback is not affected; the new quality applies to subsequent `/cast` and auto-advance loads.
+
+---
+
+### `POST /piped-url`
+
+Repoint the daemon at a different Piped instance. Persisted to DataStore. The internal `PipedClient` is rebuilt automatically; the next `/cast` or `/search` uses the new base URL.
+
+```bash
+$ curl -X POST http://192.168.1.42:7878/piped-url \
+       -H 'Content-Type: application/json' \
+       -d '{"url":"https://pipedapi.adminforge.de"}'
+{"piped_url":"https://pipedapi.adminforge.de"}
+```
+
+| Status              | Body                                                                                 |
+| ------------------- | ------------------------------------------------------------------------------------ |
+| 200 OK              | `{"piped_url": "<trimmed url>"}`                                                     |
+| 400 Bad Request     | `{"error":"piped url must start with http:// or https://"}` if the scheme is missing |
+
+Trailing slashes are stripped before persisting so the same canonical URL surfaces in `/status.piped_url` regardless of how the caller formatted it.
+
+Primarily used by `grod_remote` so the user can swap instances from their phone instead of typing a long URL on the TV's soft keyboard.
 
 ---
 
