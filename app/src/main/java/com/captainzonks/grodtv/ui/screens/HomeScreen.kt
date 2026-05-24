@@ -161,8 +161,11 @@ fun HomeScreen(onOpenSettings: () -> Unit) {
         }
 
         if (overlayVisible) {
+            // Prefer the Room-backed title, but fall back to the controller's
+            // in-memory title to avoid a brief "—" flash between `load(...)`
+            // and the suspend `setNowPlaying` Room write.
             QueueOverlay(
-                nowPlayingTitle = nowPlaying?.title,
+                nowPlayingTitle = nowPlaying?.title ?: playbackState.nowPlayingTitle,
                 queue = queue.map { it.pos to it.title },
                 onOpenSettings = onOpenSettings,
                 onDismiss = { overlayVisible = false },

@@ -82,10 +82,20 @@ private fun Application.configure(c: AppContainer, pin: String) {
             val position = c.playerController.currentPositionSecs()
             val duration = pState.durationSecs
 
+            // PlayerController updates its in-memory state synchronously on
+            // `load(...)`, but the Room write in `setNowPlaying` is a suspend
+            // IO call. The first /status poll after /cast can land between
+            // those two — fall back to the controller's title/id so the
+            // remote never sees a momentary null.
+            val nowPlayingDto = nowPlaying?.let { NowPlayingDto(it.videoId, it.title) }
+                ?: pState.nowPlayingVideoId?.let { id ->
+                    pState.nowPlayingTitle?.let { title -> NowPlayingDto(id, title) }
+                }
+
             call.respond(
                 StatusResponse(
                     state = state,
-                    nowPlaying = nowPlaying?.let { NowPlayingDto(it.videoId, it.title) },
+                    nowPlaying = nowPlayingDto,
                     queue = queue,
                     daemon = true,
                     quality = quality,
