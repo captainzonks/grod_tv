@@ -114,7 +114,13 @@ private fun Application.configure(c: AppContainer, pin: String) {
                 return@post
             }
 
-            if (occupied && body.force) c.playerController.stop()
+            if (occupied && body.force) {
+                // Fully unwind the previous track before re-resolving so the
+                // re-cast of the same video re-reads the current default
+                // quality instead of replaying the cached PlayerView state.
+                c.playerController.stop()
+                c.queueRepository.clearNowPlaying()
+            }
 
             val quality = c.settings.value.defaultQuality
             client.resolve(id, quality)
@@ -157,6 +163,7 @@ private fun Application.configure(c: AppContainer, pin: String) {
         post("/skip") {
             if (!call.authOk(pin)) return@post call.respond(HttpStatusCode.Unauthorized, ErrorResponse("invalid PIN"))
             c.playerController.stop()
+            c.queueRepository.clearNowPlaying()
             call.respond(OkResponse())
         }
 
