@@ -111,7 +111,10 @@ class PlayerController(
         player.seekTo((player.currentPosition - secs * 1000L).coerceAtLeast(0L))
     }
 
-    private suspend fun setVolume(v: Float) = withContext(Dispatchers.Main) {
+    /** Set absolute playback volume, clamped to [0.0, 1.0]. Mirrors the
+     *  Rust grod daemon's `POST /volume {level}` so the phone remote can
+     *  drive an absolute slider against either backend. */
+    suspend fun setVolume(v: Float) = withContext(Dispatchers.Main) {
         player.volume = v.coerceIn(0f, 1f)
     }
     suspend fun volumeUp(step: Float = 0.05f) = withContext(Dispatchers.Main) {
@@ -122,6 +125,10 @@ class PlayerController(
     }
     suspend fun mute() = withContext(Dispatchers.Main) { player.volume = 0f }
     suspend fun unmute() = withContext(Dispatchers.Main) { player.volume = 1f }
+
+    /** Current playback volume in [0.0, 1.0]. Reported in /status so clients
+     *  can render an absolute slider. */
+    suspend fun currentVolume(): Float = withContext(Dispatchers.Main) { player.volume }
 
     /** Snapshot of position in seconds, or null when no media loaded. Must run on main thread. */
     suspend fun currentPositionSecs(): Long? = withContext(Dispatchers.Main) {

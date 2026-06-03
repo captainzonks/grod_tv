@@ -26,6 +26,12 @@ data class StatusResponse(
     val position: Long? = null,
     val duration: Long? = null,
     @SerialName("piped_url") val pipedUrl: String? = null,
+    /** Current playback volume in [0.0, 1.0]. Lets clients render an absolute
+     *  slider. Wire-compatible with the Rust grod daemon's `volume` field. */
+    val volume: Double? = null,
+    /** True when volume is at 0.0. grod_tv has no separate mute state — mute()
+     *  zeroes the volume — so this is derived, mirroring grod's `muted`. */
+    val muted: Boolean? = null,
 )
 
 @Serializable
@@ -42,6 +48,12 @@ data class SeekBody(
 @Serializable
 data class QualityBody(
     val quality: String,
+)
+
+@Serializable
+data class VolumeBody(
+    /** Absolute volume level in [0.0, 1.0]; clamped by PlayerController. */
+    val level: Double,
 )
 
 @Serializable
