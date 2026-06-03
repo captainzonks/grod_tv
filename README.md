@@ -52,7 +52,7 @@
 
 - Ktor CIO server on configurable port (default `7878`)
 - Optional `X-Grod-Pin` header authentication
-- Endpoints byte-compatible with the Rust daemon: `/status`, `/cast`, `/queue`, `/quality`, `/play-pause`, `/skip`, `/forward`, `/back`, `/volume-up`, `/volume-down`, `/mute`, `/unmute`, `/search`
+- Endpoints byte-compatible with the Rust daemon: `/status`, `/cast`, `/queue`, `/quality`, `/play-pause`, `/skip`, `/forward`, `/back`, `/volume-up`, `/volume-down`, `/volume` (body `{"level": 0.0-1.0}`), `/mute`, `/unmute`, `/search`. `/status` reports `volume` and `muted`.
 - mDNS service advertisement via `NsdManager` (`_grod._tcp.local.`) with TXT records `version`, `pin`, `device=grod-tv` — the Rust daemon advertises `device=laptop` on the same service so remotes can disambiguate
 
 ### TV UI
@@ -215,6 +215,7 @@ curl -X POST http://<tv-ip>:7878/forward     -d '{"seconds":10}'
 curl -X POST http://<tv-ip>:7878/back        -d '{"seconds":10}'
 curl -X POST http://<tv-ip>:7878/volume-up
 curl -X POST http://<tv-ip>:7878/volume-down
+curl -X POST http://<tv-ip>:7878/volume      -H 'Content-Type: application/json' -d '{"level":0.5}'
 curl -X POST http://<tv-ip>:7878/mute
 curl -X POST http://<tv-ip>:7878/unmute
 ```

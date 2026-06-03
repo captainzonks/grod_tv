@@ -81,6 +81,7 @@ private fun Application.configure(c: AppContainer, pin: String) {
             val quality = pState.qualityLabel ?: settings.defaultQuality.label
             val position = c.playerController.currentPositionSecs()
             val duration = pState.durationSecs
+            val volume = c.playerController.currentVolume().toDouble()
 
             // PlayerController updates its in-memory state synchronously on
             // `load(...)`, but the Room write in `setNowPlaying` is a suspend
@@ -102,6 +103,8 @@ private fun Application.configure(c: AppContainer, pin: String) {
                     position = position,
                     duration = duration,
                     pipedUrl = settings.pipedApiUrl,
+                    volume = volume,
+                    muted = volume <= 0.0,
                 )
             )
         }
@@ -193,6 +196,13 @@ private fun Application.configure(c: AppContainer, pin: String) {
         post("/volume-down") {
             if (!call.authOk(pin)) return@post call.respond(HttpStatusCode.Unauthorized, ErrorResponse("invalid PIN"))
             c.playerController.volumeDown()
+            call.respond(OkResponse())
+        }
+
+        post("/volume") {
+            if (!call.authOk(pin)) return@post call.respond(HttpStatusCode.Unauthorized, ErrorResponse("invalid PIN"))
+            val body = call.receive<VolumeBody>()
+            c.playerController.setVolume(body.level.toFloat())
             call.respond(OkResponse())
         }
 
