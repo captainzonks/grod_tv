@@ -44,13 +44,49 @@ class PipedClientTest {
     // ---------- picker: quality ----------
 
     @Test
-    fun `pick at Best caps at 1080p H264 not AV1`() {
+    fun `pick at Best resolves the highest available stream (2160p)`() {
         val r = parseStreams("streams_rickroll.json")
         val pair = pickStreamsForQuality(r.videoStreams, r.audioStreams, Quality.Best)
         assertNotNull("expected a pair", pair)
-        assertEquals("1080p", pair!!.label)
+        // Fixture tops out at 2160p (VP9 + AV1). Best is now unbounded, so it
+        // must pick 2160p rather than the old hardcoded 1080p ceiling.
+        assertEquals("2160p", pair!!.label)
         assertTrue("video URL set", pair.videoUrl.isNotBlank())
         assertTrue("audio URL set", pair.audioUrl.isNotBlank())
+    }
+
+    @Test
+    fun `Best prefers AV1 over VP9 at the same height`() {
+        val r = parseStreams("streams_rickroll.json")
+        val pair = pickStreamsForQuality(r.videoStreams, r.audioStreams, Quality.Best)!!
+        // Both VP9 and AV1 exist at 2160p; AV1 (av01) is more bandwidth-efficient
+        // and must win the codec tie-break.
+        val chosen = r.videoStreams.first { it.url == pair.videoUrl }
+        assertTrue(
+            "expected AV1 at 2160p, got ${chosen.codec}",
+            chosen.codec?.startsWith("av01") == true,
+        )
+    }
+
+    @Test
+    fun `pick at 2160p picks 2160p VP9 or AV1`() {
+        val r = parseStreams("streams_rickroll.json")
+        val pair = pickStreamsForQuality(r.videoStreams, r.audioStreams, Quality.P2160)!!
+        assertEquals("2160p", pair.label)
+    }
+
+    @Test
+    fun `pick at 1440p picks 1440p`() {
+        val r = parseStreams("streams_rickroll.json")
+        val pair = pickStreamsForQuality(r.videoStreams, r.audioStreams, Quality.P1440)!!
+        assertEquals("1440p", pair.label)
+    }
+
+    @Test
+    fun `pick at 1080p still resolves 1080p (caps below VP9-only tiers)`() {
+        val r = parseStreams("streams_rickroll.json")
+        val pair = pickStreamsForQuality(r.videoStreams, r.audioStreams, Quality.P1080)!!
+        assertEquals("1080p", pair.label)
     }
 
     @Test
@@ -143,10 +179,21 @@ class PipedClientTest {
 
     @Test
     fun `Quality targetHeight`() {
-        assertEquals(1080, Quality.Best.targetHeight)
+        // Best is now unbounded so "best" means the single highest stream.
+        assertEquals(Int.MAX_VALUE, Quality.Best.targetHeight)
+        assertEquals(2160, Quality.P2160.targetHeight)
+        assertEquals(1440, Quality.P1440.targetHeight)
         assertEquals(1080, Quality.P1080.targetHeight)
         assertEquals(720, Quality.P720.targetHeight)
         assertEquals(480, Quality.P480.targetHeight)
         assertEquals(360, Quality.P360.targetHeight)
+    }
+
+    @Test
+    fun `Quality parse 4k aliases`() {
+        assertEquals(Quality.P2160, Quality.parse("4k"))
+        assertEquals(Quality.P2160, Quality.parse("2160"))
+        assertEquals(Quality.P1440, Quality.parse("2k"))
+        assertEquals(Quality.P1440, Quality.parse("1440"))
     }
 }
