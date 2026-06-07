@@ -77,16 +77,19 @@ internal fun pickStreamsForQuality(
 ): PickedPair? {
     val target = quality.targetHeight
 
-    // Video-only mp4 with H.264 codec, height in (0, target]. Pick max height.
+    // Video-only stream, height in (0, target]. Accept H.264 (mp4), VP9 and
+    // AV1 (webm/mp4) — YouTube serves nothing above 1080p as H.264, so the
+    // 1440p/2160p tiers depend on VP9/AV1. ExoPlayer decodes all three
+    // natively, so this is a pure source-selection change (no transcode).
+    //
+    // Pick the tallest stream within the cap; for ties (same height in
+    // multiple codecs) prefer the most efficient codec — AV1 > VP9 > H.264 —
+    // since the smaller stream buffers faster over the LAN at equal quality.
     val video = videos
-        .filter { v ->
-            v.videoOnly &&
-                v.height in 1..target &&
-                v.mimeType == "video/mp4" &&
-                v.format == "MPEG_4" &&
-                isAvcCodec(v.codec)
-        }
-        .maxByOrNull { it.height }
+        .filter { v -> v.videoOnly && v.height in 1..target && isPlayableVideo(v) }
+        .maxWithOrNull(
+            compareBy<VideoStreamDto> { it.height }.thenBy { codecRank(it.codec) }
+        )
         ?: return null
 
     // M4A audio-only. Prefer ORIGINAL track type, then no-track, then anything.
@@ -109,10 +112,41 @@ internal fun pickMuxedFallback(videos: List<VideoStreamDto>): String? {
     return null
 }
 
+/**
+ * Whether a video-only stream is one ExoPlayer can play in a MergingMediaSource.
+ * Covers the three codecs YouTube ships for adaptive video: H.264 (mp4), VP9
+ * and AV1 (both usually `video/webm`, AV1 sometimes `video/mp4`). The container
+ * is left to ExoPlayer's extractor — what matters is the codec being decodable.
+ */
+private fun isPlayableVideo(v: VideoStreamDto): Boolean =
+    v.mimeType.startsWith("video/") &&
+        (isAvcCodec(v.codec) || isVp9Codec(v.codec) || isAv1Codec(v.codec))
+
+/** Codec preference for tie-breaks at equal height. The picker uses
+ *  `maxWithOrNull`, which takes the *largest* value, so the most
+ *  bandwidth-efficient codec gets the highest rank: AV1 (3) > VP9 (2) >
+ *  H.264 (1) > unknown (0). At equal height the smaller, modern-codec stream
+ *  wins, buffering faster over the LAN at equal visual quality. */
+private fun codecRank(codec: String?): Int = when {
+    isAv1Codec(codec) -> 3
+    isVp9Codec(codec) -> 2
+    isAvcCodec(codec) -> 1
+    else -> 0
+}
+
 private fun isAvcCodec(codec: String?): Boolean {
-    if (codec == null) return false
-    val c = codec.lowercase()
+    val c = codec?.lowercase() ?: return false
     return c.startsWith("avc1") || c.startsWith("avc3") || c.startsWith("h264")
+}
+
+private fun isVp9Codec(codec: String?): Boolean {
+    val c = codec?.lowercase() ?: return false
+    return c.startsWith("vp9") || c.startsWith("vp09")
+}
+
+private fun isAv1Codec(codec: String?): Boolean {
+    val c = codec?.lowercase() ?: return false
+    return c.startsWith("av01") || c.startsWith("av1")
 }
 
 private fun audioTrackTier(type: String?): Int = when (type?.uppercase()) {
