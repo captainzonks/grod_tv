@@ -11,9 +11,10 @@ app/src/main/java/com/captainzonks/grodtv/
 ├── MainActivity.kt              # ComponentActivity, hosts Compose nav
 ├── AppContainer.kt              # Manual DI singleton, Application subclass
 ├── piped/
-│   ├── PipedClient.kt           # /streams + /search resolver, stream picker
+│   ├── PipedClient.kt           # /streams + /search resolver, device-aware stream picker
 │   ├── PipedDtos.kt             # @Serializable DTOs + ResolvedVideo domain type
-│   ├── Quality.kt               # Best/1080p/720p/480p/360p enum
+│   ├── Quality.kt               # Best/2160p/1440p/1080p/720p/480p/360p enum
+│   ├── VideoCodecSupport.kt     # MediaCodecList probe → decodable {AVC,VP9,AV1} set
 │   └── VideoId.kt               # extractVideoId() for URLs and bare IDs
 ├── settings/
 │   └── SettingsStore.kt         # DataStore Preferences wrapper + Settings data class
@@ -84,6 +85,8 @@ PlayerController.load(video)         # withContext(Dispatchers.Main)
 ```
 
 All `ProgressiveMediaSource.Factory` instances share a single `OkHttpDataSource.Factory(httpClient)`. **`DefaultHttpDataSource` is forbidden** — see "Critical gotchas" below.
+
+The `ExoPlayer` is built with a tuned `DefaultLoadControl` (`setBufferDurationsMs(50_000, 120_000, 2_500, 5_000)`): streams are fetched through a Piped media proxy (proxy → Cloudflare → googlevideo), which adds latency/throughput jitter versus direct googlevideo, so the default ≈50 s buffer can drain and rebuffer on long 1080p VP9 streams. The deeper 50–120 s window rides through transient dips while keeping start-up (2.5 s) and post-rebuffer (5 s) thresholds short.
 
 `Player.Listener` callbacks are registered in `PlayerController.init`. They translate `STATE_*` codes + `isPlaying` into a `PlaybackPhase` enum and update a `MutableStateFlow<PlaybackState>` that the UI and API both observe. The flow is the single source of truth for "what's the player doing right now"; the `playerController.state.value` snapshot is what `/status` reads.
 
@@ -162,9 +165,9 @@ suspend fun togglePlayPause() = withContext(Dispatchers.Main) {
 
 If you add a new mutator, wrap it. If you call `player.*` directly from somewhere else, you are about to get a 500.
 
-### 3. AV1 codec filter
+### 3. Device-aware codec selection
 
-Piped sometimes serves AV1-only (`itag 401`, codec `av01.*`) as the only high-quality video stream. Most TV decoders can't be relied on for AV1, and there is no transcode step here, so `PipedClient.pickStreamsForQuality` filters to `codec.startsWith("avc1") || startsWith("avc3") || startsWith("h264")`. **This is a deliberate divergence from the Rust daemon**, which is encoder-agnostic because libx264 transcodes downstream.
+`PipedClient.pickStreamsForQuality` accepts H.264, VP9 and AV1 video-only streams (1440p/2160p exist only as VP9/AV1). Because there is no transcode step, it must never hand the player a codec the device cannot decode — and decoder support varies by hardware. `VideoCodecSupport.detect()` queries `MediaCodecList(REGULAR_CODECS)` once at startup for the codecs this device decodes, and the picker filters to that set (`isPlayableVideo`). A Tegra X1 Shield reports `{AVC, VP9}`; selecting AV1 there yields no video track (audio over a black screen), so VP9 is chosen instead. H.264 is forced into the set as a universal floor. **This is a deliberate divergence from the Rust daemon**, which is encoder-agnostic because libx264 transcodes downstream.
 
 ### 4. mDNS unverifiable on emulator
 
