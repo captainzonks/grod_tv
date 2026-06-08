@@ -35,8 +35,11 @@
 ### Playback
 
 - Compose for TV foreground UI, Media3 ExoPlayer 1.5.1 backend
-- `MergingMediaSource(videoOnly, audioOnly)` plays Piped's separate 1080p H.264 + 126 kbps AAC tracks without remuxing
-- Configurable quality preference: `best | 1080p | 720p | 480p | 360p`
+- `MergingMediaSource(videoOnly, audioOnly)` plays Piped's separate video-only + audio-only (M4A/AAC) tracks without remuxing
+- Adaptive codec selection: H.264, VP9 and AV1 video-only streams (1440p/2160p exist only as VP9/AV1; at equal height the most efficient codec wins, AV1 > VP9 > H.264)
+- **Device-aware codec filtering**: only selects codecs the device can actually decode — e.g. a Tegra X1 Shield has no AV1 decoder, so VP9 is chosen instead of an undecodable AV1 stream (which would play audio over a black screen)
+- Configurable quality preference: `best | 2160p | 1440p | 1080p | 720p | 480p | 360p`
+- Deeper playback buffer (50–120 s) to ride through proxy/network jitter on long streams without rebuffering
 - Automatic fallback to muxed mp4 (~360p) when a target quality is unavailable
 - Original-audio-track preference (skips auto-dubs on multi-language videos)
 - `MediaSessionService` foreground service — playback survives backgrounding and shows now-playing in Android TV system UI
@@ -175,7 +178,7 @@ All settings live in DataStore Preferences and are edited from the in-app **Sett
 | Setting              | Default                            | Notes                                          |
 | -------------------- | ---------------------------------- | ---------------------------------------------- |
 | Piped API URL        | `https://pipedapi.kavin.rocks`        | Override with your own instance                |
-| Default quality      | `1080p`                            | `best \| 1080p \| 720p \| 480p \| 360p`        |
+| Default quality      | `1080p`                            | `best \| 2160p \| 1440p \| 1080p \| 720p \| 480p \| 360p` (resolutions above 1080p need a VP9/AV1-capable device) |
 | API PIN              | empty (open access)                | Sent in `X-Grod-Pin` header when set           |
 | First-run seen       | `false`                            | Flipped to `true` after dismissing first-run   |
 

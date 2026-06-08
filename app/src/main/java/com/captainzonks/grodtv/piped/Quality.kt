@@ -20,9 +20,13 @@ enum class Quality {
      * Heights at and above 1440p are served by YouTube only as VP9 or AV1
      * (there is no H.264 above 1080p), so picking them requires the resolver
      * to accept non-AVC codecs — see [pickStreamsForQuality]. ExoPlayer
-     * (Media3) decodes VP9/AV1 natively on Android TV, so no transcode is
-     * involved: the video-only VP9/AV1 stream is merged with the M4A audio
-     * track exactly as the H.264 path was.
+     * (Media3) decodes VP9/AV1 only when the device has a decoder for that
+     * codec: most Android TV devices hardware-decode VP9, but AV1 needs a
+     * recent SoC (the NVIDIA Shield's Tegra X1 has none). [pickStreamsForQuality]
+     * is therefore given the device's decodable-codec set and never selects a
+     * stream the hardware cannot play. No transcode is involved: the chosen
+     * video-only stream is merged with the M4A audio track exactly as the
+     * H.264 path was.
      */
     val targetHeight: Int
         get() = when (this) {

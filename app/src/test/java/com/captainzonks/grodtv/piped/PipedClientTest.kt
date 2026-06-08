@@ -69,6 +69,44 @@ class PipedClientTest {
     }
 
     @Test
+    fun `device without AV1 decoder picks VP9 at the same height instead`() {
+        val r = parseStreams("streams_rickroll.json")
+        // Shield (Tegra X1) reports {AVC, VP9} — no AV1. At 2160p the fixture
+        // has both VP9 and AV1; the picker must skip AV1 and choose VP9 so the
+        // device actually decodes video (regression: AV1 = black screen).
+        val shield = setOf(VideoCodec.AVC, VideoCodec.VP9)
+        val pair = pickStreamsForQuality(r.videoStreams, r.audioStreams, Quality.Best, shield)!!
+        val chosen = r.videoStreams.first { it.url == pair.videoUrl }
+        assertEquals("still 2160p", "2160p", pair.label)
+        assertTrue(
+            "expected VP9 (no AV1 decoder), got ${chosen.codec}",
+            chosen.codec?.startsWith("vp9") == true || chosen.codec?.startsWith("vp09") == true,
+        )
+    }
+
+    @Test
+    fun `device with only H264 decoder falls back to AVC`() {
+        val r = parseStreams("streams_rickroll.json")
+        // Degenerate floor: a device advertising only AVC must never select a
+        // VP9/AV1 stream. It caps at the tallest H.264 ladder rung (<=1080p).
+        val avcOnly = setOf(VideoCodec.AVC)
+        val pair = pickStreamsForQuality(r.videoStreams, r.audioStreams, Quality.Best, avcOnly)!!
+        val chosen = r.videoStreams.first { it.url == pair.videoUrl }
+        assertTrue(
+            "expected H.264, got ${chosen.codec}",
+            chosen.codec?.startsWith("avc") == true || chosen.codec?.startsWith("h264") == true,
+        )
+        assertTrue("H.264 tops out at 1080p", chosen.height <= 1080)
+    }
+
+    @Test
+    fun `empty codec support yields no playable video stream`() {
+        val r = parseStreams("streams_rickroll.json")
+        val pair = pickStreamsForQuality(r.videoStreams, r.audioStreams, Quality.Best, emptySet())
+        assertNull("no decodable codec => no pair", pair)
+    }
+
+    @Test
     fun `pick at 2160p picks 2160p VP9 or AV1`() {
         val r = parseStreams("streams_rickroll.json")
         val pair = pickStreamsForQuality(r.videoStreams, r.audioStreams, Quality.P2160)!!

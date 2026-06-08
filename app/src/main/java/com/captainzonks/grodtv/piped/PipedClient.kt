@@ -10,6 +10,13 @@ import java.io.IOException
 class PipedClient(
     baseUrl: String,
     private val http: OkHttpClient = OkHttpClient(),
+    /**
+     * Video codecs this device can actually decode. The picker never selects a
+     * stream outside this set, so an AV1-only-capable ladder is skipped on
+     * hardware (e.g. NVIDIA Shield) that has no AV1 decoder. Defaults to all
+     * three so non-Android callers / unit tests behave as before.
+     */
+    private val decodableCodecs: Set<VideoCodec> = VideoCodec.entries.toSet(),
 ) {
     private val base: String = baseUrl.trimEnd('/')
 
@@ -17,7 +24,9 @@ class PipedClient(
         withContext(Dispatchers.IO) {
             runCatching {
                 val resp = getJson<StreamsResponse>("$base/streams/$videoId")
-                val pair = pickStreamsForQuality(resp.videoStreams, resp.audioStreams, quality)
+                val pair = pickStreamsForQuality(
+                    resp.videoStreams, resp.audioStreams, quality, decodableCodecs,
+                )
                 val fallback = pickMuxedFallback(resp.videoStreams)
                 if (pair == null && fallback == null) {
                     error("no suitable stream found for $videoId")
@@ -74,19 +83,22 @@ internal fun pickStreamsForQuality(
     videos: List<VideoStreamDto>,
     audios: List<AudioStreamDto>,
     quality: Quality,
+    decodableCodecs: Set<VideoCodec> = VideoCodec.entries.toSet(),
 ): PickedPair? {
     val target = quality.targetHeight
 
     // Video-only stream, height in (0, target]. Accept H.264 (mp4), VP9 and
     // AV1 (webm/mp4) — YouTube serves nothing above 1080p as H.264, so the
-    // 1440p/2160p tiers depend on VP9/AV1. ExoPlayer decodes all three
-    // natively, so this is a pure source-selection change (no transcode).
+    // 1440p/2160p tiers depend on VP9/AV1. Crucially, only consider codecs the
+    // device can actually decode (decodableCodecs): a Shield (Tegra X1) has no
+    // AV1 decoder, so an AV1 stream there yields no video track — audio plays,
+    // screen is black. Filtering here is what keeps that from happening.
     //
     // Pick the tallest stream within the cap; for ties (same height in
     // multiple codecs) prefer the most efficient codec — AV1 > VP9 > H.264 —
     // since the smaller stream buffers faster over the LAN at equal quality.
     val video = videos
-        .filter { v -> v.videoOnly && v.height in 1..target && isPlayableVideo(v) }
+        .filter { v -> v.videoOnly && v.height in 1..target && isPlayableVideo(v, decodableCodecs) }
         .maxWithOrNull(
             compareBy<VideoStreamDto> { it.height }.thenBy { codecRank(it.codec) }
         )
@@ -113,14 +125,26 @@ internal fun pickMuxedFallback(videos: List<VideoStreamDto>): String? {
 }
 
 /**
- * Whether a video-only stream is one ExoPlayer can play in a MergingMediaSource.
- * Covers the three codecs YouTube ships for adaptive video: H.264 (mp4), VP9
- * and AV1 (both usually `video/webm`, AV1 sometimes `video/mp4`). The container
- * is left to ExoPlayer's extractor — what matters is the codec being decodable.
+ * Whether a video-only stream is one this device can play in a
+ * MergingMediaSource. Covers the three codecs YouTube ships for adaptive video
+ * — H.264 (mp4), VP9 and AV1 — but only accepts a codec when it is in
+ * [decodableCodecs], i.e. the device has a decoder for it. The container is
+ * left to ExoPlayer's extractor; what matters is the codec being decodable.
  */
-private fun isPlayableVideo(v: VideoStreamDto): Boolean =
-    v.mimeType.startsWith("video/") &&
-        (isAvcCodec(v.codec) || isVp9Codec(v.codec) || isAv1Codec(v.codec))
+private fun isPlayableVideo(v: VideoStreamDto, decodableCodecs: Set<VideoCodec>): Boolean {
+    if (!v.mimeType.startsWith("video/")) return false
+    val codec = videoCodecOf(v.codec) ?: return false
+    return codec in decodableCodecs
+}
+
+/** Classify a Piped `codec` string into the [VideoCodec] enum, or null when it
+ *  is none of the three adaptive codecs grod_tv handles. */
+private fun videoCodecOf(codec: String?): VideoCodec? = when {
+    isAv1Codec(codec) -> VideoCodec.AV1
+    isVp9Codec(codec) -> VideoCodec.VP9
+    isAvcCodec(codec) -> VideoCodec.AVC
+    else -> null
+}
 
 /** Codec preference for tie-breaks at equal height. The picker uses
  *  `maxWithOrNull`, which takes the *largest* value, so the most

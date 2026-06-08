@@ -7,6 +7,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.okhttp.OkHttpDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
@@ -41,7 +42,29 @@ class PlayerController(
     private val httpFactory = OkHttpDataSource.Factory(okHttpClient)
         .setUserAgent("grod_tv/0.1.2")
 
-    val player: ExoPlayer = ExoPlayer.Builder(context).build()
+    // grod_tv plays YouTube adaptive streams via a Piped media proxy
+    // (piped-proxy → Cloudflare → googlevideo). That extra hop adds latency and
+    // throughput jitter compared with fetching googlevideo directly, so the
+    // default ExoPlayer buffers (≈50 s max) can drain on long 1080p VP9 streams
+    // and rebuffer. Deepen the buffer so transient proxy dips ride through:
+    //   - keep up to 120 s buffered (max), target a 50 s floor before stalling;
+    //   - need only 2.5 s to (re)start playback and 5 s after a rebuffer, so a
+    //     fresh cast still starts promptly while a mid-stream dip recovers
+    //     without visibly stopping.
+    // Defaults reference: DefaultLoadControl (Media3 1.x) =
+    //   minBuffer 50 s, maxBuffer 50 s, bufferForPlayback 2.5 s, afterRebuffer 5 s.
+    private val loadControl: DefaultLoadControl = DefaultLoadControl.Builder()
+        .setBufferDurationsMs(
+            /* minBufferMs = */ 50_000,
+            /* maxBufferMs = */ 120_000,
+            /* bufferForPlaybackMs = */ 2_500,
+            /* bufferForPlaybackAfterRebufferMs = */ 5_000,
+        )
+        .build()
+
+    val player: ExoPlayer = ExoPlayer.Builder(context)
+        .setLoadControl(loadControl)
+        .build()
 
     private val _state = MutableStateFlow(PlaybackState())
     val state: StateFlow<PlaybackState> = _state.asStateFlow()

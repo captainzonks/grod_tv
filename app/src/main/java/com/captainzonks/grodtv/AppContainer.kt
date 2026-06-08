@@ -2,6 +2,7 @@ package com.captainzonks.grodtv
 
 import android.content.Context
 import com.captainzonks.grodtv.piped.PipedClient
+import com.captainzonks.grodtv.piped.VideoCodecSupport
 import com.captainzonks.grodtv.player.PlayerController
 import com.captainzonks.grodtv.queue.GrodTvDatabase
 import com.captainzonks.grodtv.queue.QueueRepository
@@ -28,11 +29,20 @@ class AppContainer(private val appContext: Context) {
 
     val httpClient: OkHttpClient = OkHttpClient.Builder().build()
 
+    /** Video codecs this device's hardware/software can decode. Detected once;
+     *  passed to every PipedClient so the stream picker skips codecs with no
+     *  decoder (e.g. AV1 on a Tegra X1 Shield). */
+    private val decodableCodecs = VideoCodecSupport.detect()
+
     val pipedClient: StateFlow<PipedClient> = settings
         .map { it.pipedApiUrl }
         .distinctUntilChanged()
-        .map { url -> PipedClient(baseUrl = url, http = httpClient) }
-        .stateIn(appScope, SharingStarted.Eagerly, PipedClient(Settings.Default.pipedApiUrl, httpClient))
+        .map { url -> PipedClient(baseUrl = url, http = httpClient, decodableCodecs = decodableCodecs) }
+        .stateIn(
+            appScope,
+            SharingStarted.Eagerly,
+            PipedClient(Settings.Default.pipedApiUrl, httpClient, decodableCodecs),
+        )
 
     private val database: GrodTvDatabase = GrodTvDatabase.build(appContext)
 
