@@ -60,9 +60,11 @@ jobs:
 
       - name: Stage release artifacts
         id: stage
+        env:
+          REF_NAME: ${{ github.ref_name }}
         run: |
           mkdir -p release-artifacts
-          RELEASE_NAME=grod_tv-${{ github.ref_name }}.apk
+          RELEASE_NAME="grod_tv-${REF_NAME}.apk"
           cp app/build/outputs/apk/release/app-release.apk \
              release-artifacts/"$RELEASE_NAME"
           echo "release_name=$RELEASE_NAME" >> "$GITHUB_OUTPUT"
